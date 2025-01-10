@@ -50,16 +50,16 @@ class MaApi:
             method="post",
             url=self._server + "/v2/Account/login",
             json={
-            	"properties": {
-            		"source": "5",
-            		"region": 0
-            	},
-            	"userName": self._email,
-            	"password_encoded": base64.b64encode(self._password.encode()).decode()
-            }
+                "properties": {"source": "5", "region": 0},
+                "userName": self._email,
+                "password_encoded": base64.b64encode(self._password.encode()).decode(),
+            },
         )
 
-        if response.get("result") == 1 and response.get("data", {}).get("status") == "Success":
+        if (
+            response.get("result") == 1
+            and response.get("data", {}).get("status") == "Success"
+        ):
             self._token = response["data"].get("token")
             self._user = response["data"].get("properties").get("userid")
             return True
@@ -81,7 +81,7 @@ class MaApi:
             url=self._server + "/v1/patient/" + self._user + "/dispenserequest/verify",
             headers={"Authorization": "Bearer " + self._token},
         )
-        
+
         _LOGGER.debug(f"Prescriptions data: {response}")
 
         if response and "data" in response and "drugs" in response["data"]:
@@ -97,26 +97,46 @@ class MaApi:
                     dispense_date = last_dispense["dispenseDate"]
                     try:
                         # Convert the dispense date to a datetime object
-                        start = datetime.strptime(dispense_date + "+1300", "%Y-%m-%dT%H:%M:%S%z")
+                        start = datetime.strptime(
+                            dispense_date + "+1300", "%Y-%m-%dT%H:%M:%S%z"
+                        )
                         _LOGGER.debug(f"Dispense date parsed successfully: {start}")
-                        
+
                         # Calculate the end time from the duration
                         end = start + timedelta(days=last_dispense["daysSupply"])
                     except ValueError as e:
                         _LOGGER.error(f"Date parsing error: {e}")
                 else:
-                    _LOGGER.warning("Drug data structure missing `lastDispense` or `dispenseDate` is not available.")
+                    _LOGGER.warning(
+                        "`lastDispense` and `dispenseDate` unavailable"
+                    )
 
                 # Find the drugs name
-                summary = str(drug["packetSize"]) + " " + drug["labelName"] + " " + drug["strength"] + " " + drug["form"]
+                summary = (
+                    str(drug["packetSize"])
+                    + " "
+                    + drug["labelName"]
+                    + " "
+                    + drug["strength"]
+                    + " "
+                    + drug["form"]
+                )
 
                 # Find the description of the drug
                 description = drug["activeName"]
 
                 # Find the repeats left
-                location = str(drug["totalFillsRemaining"]) + " of " + str(drug["totalFillsAuthorized"]) + " remaining"
+                location = (
+                    str(drug["totalFillsRemaining"])
+                    + " of "
+                    + str(drug["totalFillsAuthorized"])
+                    + " remaining"
+                )
 
-                # Because we are ordering by date in the API call, to get the soonest prescription we only ever need the first result
+                '''
+                Because we are ordering by date in the API call,
+                we only ever need the first result to get the soonest prescription.
+                '''
                 return {
                     "prescription": {
                         "start": start,
